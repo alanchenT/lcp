@@ -1,2 +1,3 @@
-# lcp
-L(ive) C(hat) P(latform)
+# L(ive) C(hat) P(latform)
+
+
