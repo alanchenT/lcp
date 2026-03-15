@@ -1,35 +1,55 @@
+#include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "client/net.h"
+#include "client/client.h"
 #include "common.h"
 #include "debug.h"
+#include "packets.h"
+#include "payload_queue.h"
+
+void message_loop(Client* client) {}
 
 int main() {
-    int socket_fd = open_client_socket();
-    if (socket_fd == -1) {
-        fprintf(stderr, "client: failed to open socket\n");
+    Client* client = alloc_client();
+    if (client == NULL) {
+        fprintf(stderr, "client: failed to create client\n");
         exit(1);
     }
 
-    display_peer_info(socket_fd);
+    if (!client_connect(client)) {
+        fprintf(stderr, "client: failed to connect to server\n");
+        exit(1);
+    }
 
-    char message[MAX_NET_BUFFER_SIZE];
-    while (1) {
+    display_peer_info(client->socket_fd);
+
+    INIT_PACKET(PacketChatMessage, chat_message)
+    chat_message.client_id = client->socket_fd;
+
+    while (client->is_connected) {
         printf("message: ");
 
-        if (fgets(message, sizeof(message), stdin) == nullptr) {
+        if (fgets(chat_message.message, sizeof(chat_message.message), stdin) == NULL) {
             break;
         }
 
-        message[strcspn(message, "\n")] = '\0';
+        chat_message.message[strcspn(chat_message.message, "\n")] = '\0';
 
-        net_send(socket_fd, message, strlen(message) + 1);
+        Payload* payload = alloc_payload(sizeof(chat_message));
+        payload->len = write_packet(&chat_message, payload->data, payload->len);
+
+        if (payload->len == 0) {
+            free_payload(payload);
+            continue;
+        }
+        client_send(client, payload);
     }
 
-    close(socket_fd);
+    client_disconnect(client);
+
     return 0;
 }

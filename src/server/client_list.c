@@ -6,38 +6,54 @@
 
 #include "net_shared.h"
 
-ClientList* init_client_list(void) {
+ClientList* alloc_client_list(void) {
     ClientList* client_list = malloc(sizeof(ClientList));
-    if (client_list == nullptr) {
-        perror("server: unable to malloc ClientList");
-        return nullptr;
+    if (client_list == NULL) {
+        return NULL;
     }
 
     client_list->count = 0;
     client_list->capacity = MAX_CLIENTS;
-    pthread_mutex_init(&client_list->mutex, nullptr);
+    pthread_mutex_init(&client_list->mutex, NULL);
 
     for (size_t i = 0; i < client_list->capacity; ++i) {
         ClientContext* ctx = &client_list->clients[i];
         ctx->id = i;
         ctx->is_active = false;
+        ctx->parent_list = client_list;
     }
 
     return client_list;
 }
 
+void free_client_list(ClientList* list) {
+    pthread_mutex_lock(&list->mutex);
+
+    for (size_t i = 0; i < list->capacity; ++i) {
+        ClientContext* ctx = &list->clients[i];
+        free_payload_queue(ctx->recv_queue);
+        free_payload_queue(ctx->send_queue);
+    }
+
+    pthread_mutex_unlock(&list->mutex);
+
+    pthread_mutex_destroy(&list->mutex);
+    free(list);
+}
+
 static ClientContext* reserve_client(ClientList* list) {
     pthread_mutex_lock(&list->mutex);
 
+    // Reached max clients
     if (list->count + 1 > list->capacity) {
         pthread_mutex_unlock(&list->mutex);
-        return nullptr;
+        return NULL;
     }
 
     for (size_t i = 0; i < list->capacity; ++i) {
         ClientContext* ctx = &list->clients[i];
-        if (!ctx->is_reserved) { // Mark as reserved
-            ctx->is_reserved = true;
+        if (!ctx->is_active) {
+            ctx->is_active = true;
             list->count++;
 
             pthread_mutex_unlock(&list->mutex);
@@ -46,90 +62,84 @@ static ClientContext* reserve_client(ClientList* list) {
     }
 
     pthread_mutex_unlock(&list->mutex);
-    return nullptr;
-}
-
-bool drop_client(ClientList* list, ClientContext* ctx) {
-    pthread_mutex_lock(&list->mutex);
-
-    close(ctx->socket_fd);
-    ctx->is_active = false;
-    ctx->is_reserved = false;
-
-    list->count--;
-
-    pthread_mutex_unlock(&list->mutex);
-
-    return true;
-}
-
-void* client_send_thread(void* arg) {
-    // ClientContext* ctx = arg;
-
-    return nullptr;
-}
-
-void* client_recv_thread(void* arg) {
-    ClientContext* ctx = arg;
-
-    printf("recv thread\n");
-
-    char recv_buffer[MAX_NET_BUFFER_SIZE];
-
-    while (ctx->is_active) {
-        bool recv_status = net_recv(ctx->socket_fd, recv_buffer, sizeof(recv_buffer));
-        if (!recv_status) { // Disconnected / error
-            ctx->is_active = false;
-            break;
-        }
-
-        printf("received: %s\n", recv_buffer);
-    }
-
-    printf("bye bye\n");
-
-    shutdown_send_queue(ctx->send_queue);
-
-    return nullptr;
+    return NULL;
 }
 
 bool add_client(ClientList* list, int socket_fd) {
     ClientContext* ctx = reserve_client(list);
-    if (ctx == nullptr) {
+    if (ctx == NULL) {
         return false;
     }
 
-    ctx->socket_fd = socket_fd;
-    ctx->send_queue = init_send_queue();
-    ctx->is_active = true;
-    ctx->parent_list = list;
+    return activate_client_context(ctx, socket_fd);
+}
 
-    int pthread_status = 0;
+void remove_client(ClientList* list, ClientContext* ctx) {
+    pthread_mutex_lock(&list->mutex);
 
-    // Spawn threads to handle reading and writing
-    pthread_status = pthread_create(&ctx->recv_thread, nullptr, client_recv_thread, ctx);
-    if (pthread_status != 0) {
-        fprintf(stderr, "server: pthread_create failed\n");
-        return false;
+    shutdown_client_context(ctx);
+    list->count--;
+
+    pthread_mutex_unlock(&list->mutex);
+}
+
+void remove_all_clients(ClientList* list) {
+    pthread_mutex_lock(&list->mutex);
+
+    for (size_t i = 0; i < list->capacity; ++i) {
+        ClientContext* ctx = &list->clients[i];
+        if (ctx->is_active) {
+            shutdown_client_context(ctx);
+        }
     }
 
-    pthread_status = pthread_create(&ctx->send_thread, nullptr, client_send_thread, ctx);
-    if (pthread_status != 0) {
-        fprintf(stderr, "server: pthread_create failed\n");
-        return false;
-    }
+    list->count = 0;
 
-    pthread_status = pthread_detach(ctx->recv_thread);
-    if (pthread_status != 0) {
-        fprintf(stderr, "server: pthread_detach failed\n");
-        return false;
-    }
+    pthread_mutex_unlock(&list->mutex);
+}
 
-    pthread_status = pthread_detach(ctx->send_thread);
-    if (pthread_status != 0) {
-        fprintf(stderr, "server: pthread_detach failed\n");
-        return false;
-    }
+void for_each_client(ClientList* list, void (*callback)(ClientContext*)) {
+    for (size_t i = 0; i < list->capacity; ++i) {
+        pthread_mutex_lock(&list->mutex);
 
-    return true;
+        ClientContext* ctx = &list->clients[i];
+
+        if (!ctx->is_active) {
+            pthread_mutex_unlock(&list->mutex);
+            continue;
+        }
+
+        callback(ctx);
+        pthread_mutex_unlock(&list->mutex);
+    }
+}
+
+void send_to_one(ClientContext* ctx, Payload* payload) {
+    move_into_payload_queue(ctx->send_queue, payload);
+}
+
+void send_to_all(ClientList* list, Payload* payload) {
+    for (size_t i = 0; i < list->capacity; ++i) {
+        ClientContext* ctx = &list->clients[i];
+        if (!ctx->is_active) {
+            continue;
+        }
+
+        push_payload_queue(ctx->send_queue, payload->data, payload->len);
+    }
+}
+
+void send_to_all_except(ClientList* list, ClientContext* exception, Payload* payload) {
+    for (size_t i = 0; i < list->capacity; ++i) {
+        ClientContext* ctx = &list->clients[i];
+        if (!ctx->is_active) {
+            continue;
+        }
+
+        if (ctx == exception) {
+            continue;
+        }
+
+        push_payload_queue(ctx->send_queue, payload->data, payload->len);
+    }
 }

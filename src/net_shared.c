@@ -22,7 +22,7 @@ static bool send_all(int socket_fd, const void* payload, size_t payload_len) {
 
     while (current_bytes_sent < payload_len) {
         ssize_t bytes_sent =
-            send(socket_fd, (const char*)payload + current_bytes_sent, payload_len - current_bytes_sent, 0);
+            send(socket_fd, (const uint8_t*)payload + current_bytes_sent, payload_len - current_bytes_sent, 0);
 
         if (bytes_sent <= 0) {
             return false;
@@ -54,7 +54,7 @@ static bool recv_all(int socket_fd, void* recv_buffer, size_t payload_len) {
 
     while (current_bytes_read < payload_len) {
         ssize_t bytes_read =
-            recv(socket_fd, (char*)recv_buffer + current_bytes_read, payload_len - current_bytes_read, 0);
+            recv(socket_fd, (uint8_t*)recv_buffer + current_bytes_read, payload_len - current_bytes_read, 0);
 
         if (bytes_read <= 0) {
             return false;
@@ -66,21 +66,21 @@ static bool recv_all(int socket_fd, void* recv_buffer, size_t payload_len) {
     return true;
 }
 
-bool net_recv(int socket_fd, void* recv_buffer, size_t recv_buffer_size) {
+size_t net_recv(int socket_fd, void* recv_buffer, size_t recv_buffer_size) {
     PayloadHeader header;
     if (!recv_all(socket_fd, &header, sizeof(header))) {
-        return false;
+        return 0;
     }
 
     uint32_t payload_len = ntohl(header.payload_len);
 
     if (payload_len > recv_buffer_size) { // The payload is too large!
-        return false;
+        return 0;
     }
 
     if (!recv_all(socket_fd, recv_buffer, payload_len)) {
-        return false;
+        return 0;
     }
 
-    return true;
+    return payload_len;
 }

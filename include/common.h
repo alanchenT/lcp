@@ -2,8 +2,8 @@
 #define LCP_COMMON_H
 
 // Common type definitions
-#include <stdbool.h>
-#include <stdint.h>
+#include <stdbool.h> // true, false
+#include <stdint.h> // sized integer types
 #include <sys/types.h>
 
 // The port to which the server is bound and clients will connect

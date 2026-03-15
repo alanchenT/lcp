@@ -26,7 +26,7 @@ void display_peer_info(int socket_fd) {
 
     // Extract stringified IP address
     const char* ntop_status = inet_ntop(server_addr.sa_family, sockaddr, ip_string, sizeof(ip_string));
-    if (ntop_status == nullptr) {
+    if (ntop_status == NULL) {
         perror("inet_ntop error");
         return;
     }
