@@ -6,20 +6,20 @@
 #include "common.h"
 
 typedef struct ClientList ClientList;
-typedef struct PayloadQueue PayloadQueue;
+typedef struct PacketQueue PacketQueue;
 
 typedef struct ClientContext {
-    char display_name[CLIENT_NAME_MAX_LEN];
-    int socket_fd;
+    char display_name[CLIENT_DISPLAY_NAME_MAX_LEN];
     size_t id;
+    bool is_active;
+
+    int socket_fd;
 
     pthread_t recv_thread;
     pthread_t send_thread;
 
-    PayloadQueue* recv_queue;
-    PayloadQueue* send_queue;
-
-    bool is_active;
+    PacketQueue* recv_queue;
+    PacketQueue* send_queue;
 
     ClientList* parent_list;
 } ClientContext;
@@ -27,5 +27,7 @@ typedef struct ClientContext {
 bool activate_client_context(ClientContext* ctx, int socket_fd);
 
 void shutdown_client_context(ClientContext* ctx);
+
+void set_client_context_display_name(ClientContext* ctx, const char* display_name);
 
 #endif

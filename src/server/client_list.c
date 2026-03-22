@@ -2,9 +2,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "net_shared.h"
+#include "packet_queue.h"
+#include "packets.h"
 
 ClientList* alloc_client_list(void) {
     ClientList* client_list = malloc(sizeof(ClientList));
@@ -31,8 +34,8 @@ void free_client_list(ClientList* list) {
 
     for (size_t i = 0; i < list->capacity; ++i) {
         ClientContext* ctx = &list->clients[i];
-        free_payload_queue(ctx->recv_queue);
-        free_payload_queue(ctx->send_queue);
+        free_packet_queue(ctx->recv_queue);
+        free_packet_queue(ctx->send_queue);
     }
 
     pthread_mutex_unlock(&list->mutex);
@@ -65,13 +68,17 @@ static ClientContext* reserve_client(ClientList* list) {
     return NULL;
 }
 
-bool add_client(ClientList* list, int socket_fd) {
+ClientContext* add_client(ClientList* list, int socket_fd) {
     ClientContext* ctx = reserve_client(list);
     if (ctx == NULL) {
-        return false;
+        return NULL;
     }
 
-    return activate_client_context(ctx, socket_fd);
+    if (!activate_client_context(ctx, socket_fd)) {
+        return NULL;
+    }
+
+    return ctx;
 }
 
 void remove_client(ClientList* list, ClientContext* ctx) {
@@ -103,33 +110,41 @@ void for_each_client(ClientList* list, void (*callback)(ClientContext*)) {
         pthread_mutex_lock(&list->mutex);
 
         ClientContext* ctx = &list->clients[i];
-
         if (!ctx->is_active) {
             pthread_mutex_unlock(&list->mutex);
             continue;
         }
 
-        callback(ctx);
         pthread_mutex_unlock(&list->mutex);
+        callback(ctx);
     }
 }
 
-void send_to_one(ClientContext* ctx, Payload* payload) {
-    move_into_payload_queue(ctx->send_queue, payload);
+void send_to_one(ClientContext* ctx, void* packet) {
+    write_packet_queue(ctx->send_queue, packet);
 }
 
-void send_to_all(ClientList* list, Payload* payload) {
+void send_to_all(ClientList* list, void* packet) {
+    pthread_mutex_lock(&list->mutex);
+
     for (size_t i = 0; i < list->capacity; ++i) {
         ClientContext* ctx = &list->clients[i];
         if (!ctx->is_active) {
             continue;
         }
 
-        push_payload_queue(ctx->send_queue, payload->data, payload->len);
+        Packet* copy = copy_packet(packet);
+        write_packet_queue(ctx->send_queue, copy);
     }
+
+    pthread_mutex_unlock(&list->mutex);
+
+    free_packet(packet);
 }
 
-void send_to_all_except(ClientList* list, ClientContext* exception, Payload* payload) {
+void send_to_all_except(ClientList* list, ClientContext* exception, void* packet) {
+    pthread_mutex_lock(&list->mutex);
+
     for (size_t i = 0; i < list->capacity; ++i) {
         ClientContext* ctx = &list->clients[i];
         if (!ctx->is_active) {
@@ -140,6 +155,11 @@ void send_to_all_except(ClientList* list, ClientContext* exception, Payload* pay
             continue;
         }
 
-        push_payload_queue(ctx->send_queue, payload->data, payload->len);
+        Packet* copy = copy_packet(packet);
+        write_packet_queue(ctx->send_queue, copy);
     }
+
+    pthread_mutex_unlock(&list->mutex);
+
+    free_packet(packet);
 }

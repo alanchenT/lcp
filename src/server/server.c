@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "server/client_list.h"
+#include "server/net_callbacks.h"
 
 Server* alloc_server(void) {
     Server* new_server = malloc(sizeof(Server));
@@ -128,11 +129,13 @@ void* accept_loop(void* arg) {
             break;
         }
 
-        bool success = add_client(server->client_list, client_fd);
-        if (!success) {
+        ClientContext* ctx = add_client(server->client_list, client_fd);
+        if (ctx == NULL) {
             printf("server: client failed to connect\n");
             continue;
         }
+
+        handle_client_connect(ctx);
 
         printf("server: a client connected\n");
     }

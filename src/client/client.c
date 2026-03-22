@@ -8,27 +8,31 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "client/peer_list.h"
 #include "net_shared.h"
-#include "payload_queue.h"
+#include "packet_queue.h"
+#include "packets.h"
+
+#define INVALID_CLIENT_ID -1
 
 static void* client_send_thread(void* arg) {
     Client* client = arg;
 
     while (client->is_connected) {
-        Payload* payload = pop_payload_queue(client->send_queue);
+        Packet* packet = pop_packet_queue(client->send_queue);
 
-        if (payload == NULL) {
+        if (packet == NULL) {
             break;
         }
 
-        bool send_status = net_send(client->socket_fd, payload->data, payload->len);
+        bool send_status = net_send(client->socket_fd, packet->internal.payload, packet->internal.payload_len);
         if (!send_status) {
             client->is_connected = false;
-            free_payload(payload);
+            free_packet(packet);
             break;
         }
 
-        free_payload(payload);
+        free_packet(packet);
     }
 
     return NULL;
@@ -41,13 +45,15 @@ static void* client_recv_thread(void* arg) {
 
     while (client->is_connected) {
         size_t payload_len = net_recv(client->socket_fd, recv_buffer, sizeof(recv_buffer));
+
         if (payload_len == 0) { // Disconnected / error
             client->is_connected = false;
             break;
         }
 
-        printf("received (%ld): %s\n", payload_len, recv_buffer);
-        push_payload_queue(client->recv_queue, recv_buffer, payload_len);
+        if (!recv_packet_queue(client->recv_queue, recv_buffer, payload_len)) {
+            break;
+        }
     }
 
     return NULL;
@@ -59,12 +65,30 @@ Client* alloc_client(void) {
         return NULL;
     }
 
+    client->id = INVALID_CLIENT_ID;
     client->socket_fd = -1;
     client->is_connected = false;
-    client->send_queue = alloc_payload_queue();
-    client->recv_queue = alloc_payload_queue();
+    client->send_queue = alloc_packet_queue();
+    client->recv_queue = alloc_packet_queue();
+    client->peers = alloc_peer_list();
+
+    memset(client->display_name, 0, sizeof(client->display_name));
 
     return client;
+}
+
+void free_client(Client* client) {
+    client_disconnect(client);
+
+    free_packet_queue(client->send_queue);
+    free_packet_queue(client->recv_queue);
+
+    free_peer_list(client->peers);
+    free(client);
+}
+
+bool client_completed_handshake(Client* client) {
+    return client->id > INVALID_CLIENT_ID;
 }
 
 static struct addrinfo* find_valid_addrinfo(struct addrinfo* first_addr, int* socket_fd) {
@@ -162,9 +186,10 @@ bool client_disconnect(Client* client) {
     }
 
     client->is_connected = false;
+    client->id = INVALID_CLIENT_ID;
 
-    shutdown_payload_queue(client->send_queue);
-    shutdown_payload_queue(client->recv_queue);
+    shutdown_packet_queue(client->send_queue);
+    shutdown_packet_queue(client->recv_queue);
 
     pthread_join(client->send_thread, NULL);
     pthread_join(client->recv_thread, NULL);
@@ -174,6 +199,7 @@ bool client_disconnect(Client* client) {
     return true;
 }
 
-void client_send(Client* client, Payload* payload) {
-    move_into_payload_queue(client->send_queue, payload);
+// TODO: Error handling
+void client_send(Client* client, void* packet) {
+    write_packet_queue(client->send_queue, packet);
 }

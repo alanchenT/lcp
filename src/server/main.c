@@ -11,8 +11,10 @@
 #include <unistd.h>
 
 #include "common.h"
+#include "packet_queue.h"
 #include "packets.h"
 #include "server/client_list.h"
+#include "server/net_callbacks.h"
 #include "server/server.h"
 
 static volatile sig_atomic_t is_running = true;
@@ -30,27 +32,21 @@ double get_time() {
 }
 
 void update_client(ClientContext* ctx) {
-    while (!is_payload_queue_empty(ctx->recv_queue)) {
-        Payload* payload = poll_payload_queue(ctx->recv_queue);
-
-        if (payload == NULL) {
+    while (!is_packet_queue_empty(ctx->recv_queue)) {
+        Packet* packet = poll_packet_queue(ctx->recv_queue);
+        if (packet == NULL) {
             return;
         }
 
-        size_t bytes_read;
-        PacketId packet_id;
-        void* packet = read_packet(payload->data, payload->len, &bytes_read, &packet_id);
-
-        if (packet == NULL) {
-            goto cleanup;
-        }
-
-        switch (packet_id) {
+        switch (get_packet_id(packet)) {
             case PacketChatMessageId: {
-                PacketChatMessage* chat_message = packet;
-                printf("%d said: %s\n", chat_message->client_id, chat_message->message);
+                handle_chat_message(ctx, packet);
 
-                send_to_all(ctx->parent_list, payload);
+                printf("chat gpt\n");
+                break;
+            }
+            case PacketSetDisplayNameId: {
+                handle_set_display_name(ctx, packet);
                 break;
             }
 
@@ -59,9 +55,7 @@ void update_client(ClientContext* ctx) {
             }
         }
 
-    cleanup:
-        free_payload(payload);
-        free(packet);
+        free_packet(packet);
     }
 }
 

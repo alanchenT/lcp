@@ -1,13 +1,14 @@
-#include "payload_queue.h"
+#include "packet_queue.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-PayloadQueue* alloc_payload_queue(void) {
-    PayloadQueue* queue = malloc(sizeof(PayloadQueue));
+#include "packets.h"
+
+PacketQueue* alloc_packet_queue(void) {
+    PacketQueue* queue = malloc(sizeof(PacketQueue));
     if (queue == NULL) {
-        perror("[alloc_payload_queue] malloc error");
+        perror("[alloc_packet_queue] malloc error");
         return NULL;
     }
 
@@ -21,12 +22,22 @@ PayloadQueue* alloc_payload_queue(void) {
     return queue;
 }
 
+void free_packet(void* packet) {
+    PacketInternal* internal = &((Packet*)packet)->internal;
+    if (internal->payload != NULL) {
+        free(internal->payload);
+        internal->payload_len = 0;
+    }
+
+    free(packet);
+}
+
 // This does NOT lock/unlock the mutex!
-static void free_all_payloads(PayloadQueue* queue) {
-    Payload* current = queue->head;
+static void free_all_packets(PacketQueue* queue) {
+    Packet* current = queue->head;
     while (current != NULL) {
-        Payload* next = current->next;
-        free(current);
+        Packet* next = current->internal.next;
+        free_packet(current);
         current = next;
     }
 
@@ -35,10 +46,10 @@ static void free_all_payloads(PayloadQueue* queue) {
     queue->count = 0;
 }
 
-void free_payload_queue(PayloadQueue* queue) {
+void free_packet_queue(PacketQueue* queue) {
     pthread_mutex_lock(&queue->mutex);
 
-    free_all_payloads(queue);
+    free_all_packets(queue);
     queue->is_shutdown = true;
 
     pthread_mutex_unlock(&queue->mutex);
@@ -49,47 +60,22 @@ void free_payload_queue(PayloadQueue* queue) {
     free(queue);
 }
 
-Payload* alloc_payload(size_t len) {
-    Payload* new_payload = malloc(sizeof(Payload));
-    if (new_payload == NULL) {
-        perror("[alloc_payload] malloc error");
-        return NULL;
-    }
-
-    new_payload->data = malloc(sizeof(char) * len);
-    if (new_payload->data == NULL) {
-        perror("[alloc_payload] payload->data malloc error");
-        return NULL;
-    }
-
-    new_payload->len = len;
-    new_payload->next = NULL;
-
-    return new_payload;
-}
-
-void free_payload(Payload* payload) {
-    payload->next = NULL;
-    free(payload->data);
-    free(payload);
-}
-
-void move_into_payload_queue(PayloadQueue* queue, Payload* payload) {
+static void push_packet_queue(PacketQueue* queue, Packet* packet) {
     pthread_mutex_lock(&queue->mutex);
 
     if (queue->is_shutdown) {
         pthread_mutex_unlock(&queue->mutex);
-        free(payload);
+        free_packet(packet);
 
         return;
     }
 
     if (queue->head == NULL) {
-        queue->tail = payload;
+        queue->tail = packet;
     } else {
-        payload->next = queue->head;
+        packet->internal.next = queue->head;
     }
-    queue->head = payload;
+    queue->head = packet;
     queue->count++;
 
     // Wake up the thread
@@ -97,14 +83,29 @@ void move_into_payload_queue(PayloadQueue* queue, Payload* payload) {
     pthread_mutex_unlock(&queue->mutex);
 }
 
-void push_payload_queue(PayloadQueue* queue, const uint8_t* data, size_t len) {
-    Payload* new_payload = alloc_payload(len);
-    memcpy(new_payload->data, data, len);
+bool write_packet_queue(PacketQueue* queue, Packet* packet) {
+    size_t bytes_written = write_packet(packet);
+    if (bytes_written == 0) {
+        return false;
+    }
 
-    move_into_payload_queue(queue, new_payload);
+    push_packet_queue(queue, packet);
+
+    return true;
 }
 
-Payload* pop_payload_queue(PayloadQueue* queue) {
+bool recv_packet_queue(PacketQueue* queue, const uint8_t* buffer, size_t buffer_size) {
+    Packet* packet = read_packet(buffer, buffer_size);
+    if (packet == NULL) {
+        return false;
+    }
+
+    push_packet_queue(queue, packet);
+
+    return true;
+}
+
+void* pop_packet_queue(PacketQueue* queue) {
     pthread_mutex_lock(&queue->mutex);
 
     // Block until there's a payload or the queue gets shutdown
@@ -117,8 +118,8 @@ Payload* pop_payload_queue(PayloadQueue* queue) {
         return NULL;
     }
 
-    Payload* payload = queue->head;
-    queue->head = payload->next;
+    Packet* packet = queue->head;
+    queue->head = packet->internal.next;
     if (queue->head == NULL) {
         queue->tail = NULL;
     }
@@ -126,10 +127,11 @@ Payload* pop_payload_queue(PayloadQueue* queue) {
 
     pthread_mutex_unlock(&queue->mutex);
 
-    return payload;
+    return packet;
 }
 
-Payload* poll_payload_queue(PayloadQueue* queue) {
+// A non-blocking variant of `pop_payload_queue` that returns `NULL` when the queue is empty
+void* poll_packet_queue(PacketQueue* queue) {
     pthread_mutex_lock(&queue->mutex);
 
     if (queue->head == NULL) {
@@ -137,8 +139,8 @@ Payload* poll_payload_queue(PayloadQueue* queue) {
         return NULL;
     }
 
-    Payload* payload = queue->head;
-    queue->head = payload->next;
+    Packet* packet = queue->head;
+    queue->head = packet->internal.next;
     if (queue->head == NULL) {
         queue->tail = NULL;
     }
@@ -146,10 +148,10 @@ Payload* poll_payload_queue(PayloadQueue* queue) {
 
     pthread_mutex_unlock(&queue->mutex);
 
-    return payload;
+    return packet;
 }
 
-bool is_payload_queue_empty(PayloadQueue* queue) {
+bool is_packet_queue_empty(PacketQueue* queue) {
     pthread_mutex_lock(&queue->mutex);
     bool is_empty = queue->count == 0;
     pthread_mutex_unlock(&queue->mutex);
@@ -157,11 +159,11 @@ bool is_payload_queue_empty(PayloadQueue* queue) {
     return is_empty;
 }
 
-void shutdown_payload_queue(PayloadQueue* queue) {
+void shutdown_packet_queue(PacketQueue* queue) {
     pthread_mutex_lock(&queue->mutex);
 
     queue->is_shutdown = true;
-    free_all_payloads(queue);
+    free_all_packets(queue);
 
     pthread_cond_broadcast(&queue->cond);
 
