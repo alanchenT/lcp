@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "client/app.h"
 #include "client/client.h"
 #include "client/gui.h"
 #include "client/net_callbacks.h"
@@ -54,24 +55,32 @@ void update(Client* client) {
     }
 }
 
-void message_loop(Client* client) {
-    while (client->is_connected) {}
-}
-
 int main() {
-    //init_gui();
+    setenv("GSK_RENDERER", "cairo", 1);
+
+    App* app = alloc_app();
+    if (app == NULL) {
+        fprintf(stderr, "client: failed to alloc app\n");
+        exit(1);
+    }
+
+    if (!app_connect(app, SERVER_PORT)) {
+        fprintf(stderr, "client: failed to connect to server\n");
+        exit(1);
+    }
+
+    app_start(app);
+
     Client* client = alloc_client();
     if (client == NULL) {
         fprintf(stderr, "client: failed to create client\n");
         exit(1);
     }
 
-    if (!client_connect(client)) {
+    if (!client_connect(client, SERVER_PORT)) {
         fprintf(stderr, "client: failed to connect to server\n");
         exit(1);
     }
-
-    display_peer_info(client->socket_fd);
 
     while (client->is_connected) {
         update(client);

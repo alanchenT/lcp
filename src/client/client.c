@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "client/app.h"
 #include "client/peer_list.h"
 #include "net_shared.h"
 #include "packet_queue.h"
@@ -123,7 +124,7 @@ static struct addrinfo* find_valid_addrinfo(struct addrinfo* first_addr, int* so
     return current;
 }
 
-static int open_client_socket(void) {
+static int open_client_socket(const char* port) {
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
@@ -133,7 +134,7 @@ static int open_client_socket(void) {
     struct addrinfo* first_addr = NULL;
 
     // TODO: Different server ports?
-    int status = getaddrinfo(NULL, SERVER_PORT, &hints, &first_addr);
+    int status = getaddrinfo(NULL, port, &hints, &first_addr);
     if (status == -1) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
         return -1;
@@ -154,12 +155,14 @@ static int open_client_socket(void) {
     return socket_fd;
 }
 
-bool client_connect(Client* client) {
-    client->socket_fd = open_client_socket();
+bool client_connect(Client* client, const char* port) {
+    client->socket_fd = open_client_socket(port);
     if (client->socket_fd == -1) {
         fprintf(stderr, "client: failed to open socket\n");
         return false;
     }
+
+    client->is_connected = true;
 
     int pthread_status = 0;
 
@@ -169,13 +172,11 @@ bool client_connect(Client* client) {
         return false;
     }
 
-    pthread_status = pthread_create(&client->recv_thread, NULL, client_send_thread, client);
+    pthread_status = pthread_create(&client->send_thread, NULL, client_send_thread, client);
     if (pthread_status != 0) {
         fprintf(stderr, "client: pthread_create failed (send)\n");
         return false;
     }
-
-    client->is_connected = true;
 
     return true;
 }

@@ -98,7 +98,16 @@ bool activate_client_context(ClientContext* ctx, int socket_fd) {
 }
 
 void shutdown_client_context(ClientContext* ctx) {
-    shutdown_packet_queue(ctx->send_queue);
+    if (ctx->send_queue != NULL) {
+        shutdown_packet_queue(ctx->send_queue);
+        free_packet_queue(ctx->send_queue);
+        ctx->send_queue = NULL;
+    }
+    if (ctx->recv_queue != NULL) {
+        free_packet_queue(ctx->recv_queue);
+        ctx->recv_queue = NULL;
+    }
+
     close(ctx->socket_fd);
     ctx->is_active = false;
 }

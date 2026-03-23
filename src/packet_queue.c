@@ -70,12 +70,14 @@ static void push_packet_queue(PacketQueue* queue, Packet* packet) {
         return;
     }
 
+    packet->internal.next = NULL;
     if (queue->head == NULL) {
-        queue->tail = packet;
+        queue->head = packet;
     } else {
-        packet->internal.next = queue->head;
+        queue->tail->internal.next = packet;
     }
-    queue->head = packet;
+    queue->tail = packet;
+
     queue->count++;
 
     // Wake up the thread

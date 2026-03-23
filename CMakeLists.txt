@@ -13,8 +13,31 @@ add_compile_options(
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK4 REQUIRED gtk4)
 
+find_program(GLIB_COMPILE_RESOURCES glib-compile-resources REQUIRED)
+
 # Client target
+set(RESOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/resources)
+set(RESOURCE_XML ${RESOURCE_DIR}/gresource.xml)
+set(RESOURCE_C ${CMAKE_CURRENT_BINARY_DIR}/resources.c)
+set(RESOURCE_DEPFILE ${CMAKE_CURRENT_BINARY_DIR}/resources.d)
+
+add_custom_command(
+    OUTPUT ${RESOURCE_C}
+    WORKING_DIRECTORY ${RESOURCE_DIR}
+    COMMAND ${GLIB_COMPILE_RESOURCES} 
+            --target=${RESOURCE_C} 
+            --generate-source 
+            --sourcedir=${RESOURCE_DIR}
+            --dependency-file=${RESOURCE_DEPFILE}
+            ${RESOURCE_XML} 
+    DEPENDS ${RESOURCE_XML}
+    DEPFILE ${RESOURCE_DEPFILE}
+    VERBATIM
+    COMMENT "Compiling resources..."
+)
+
 set(CLIENT_SOURCES 
+    src/client/app.c
     src/client/main.c
     src/client/client.c
     src/client/peer_list.c
@@ -26,11 +49,13 @@ set(CLIENT_SOURCES
     src/packet_queue.c
     src/packets.c
 )
-add_executable(client ${CLIENT_SOURCES})
+add_executable(client ${CLIENT_SOURCES} ${RESOURCE_C})
 target_include_directories(client PRIVATE include ${GTK4_INCLUDE_DIRS})
 target_link_libraries(client PRIVATE ${GTK4_LIBRARIES})
 target_compile_options(client PRIVATE ${GTK4_CFLAGS_OTHER})
 target_link_directories(client PRIVATE ${GTK4_LIBRARY_DIRS})
+
+set_source_files_properties(${RESOURCE_C} PROPERTIES GENERATED TRUE)
 
 # Server target
 set(SERVER_SOURCES

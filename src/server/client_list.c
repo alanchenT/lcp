@@ -24,6 +24,9 @@ ClientList* alloc_client_list(void) {
         ctx->id = i;
         ctx->is_active = false;
         ctx->parent_list = client_list;
+
+        ctx->recv_queue = NULL;
+        ctx->send_queue = NULL;
     }
 
     return client_list;
@@ -34,8 +37,14 @@ void free_client_list(ClientList* list) {
 
     for (size_t i = 0; i < list->capacity; ++i) {
         ClientContext* ctx = &list->clients[i];
-        free_packet_queue(ctx->recv_queue);
-        free_packet_queue(ctx->send_queue);
+
+        if (ctx->recv_queue != NULL) {
+            free_packet_queue(ctx->recv_queue);
+        }
+
+        if (ctx->send_queue != NULL) {
+            free_packet_queue(ctx->send_queue);
+        }
     }
 
     pthread_mutex_unlock(&list->mutex);

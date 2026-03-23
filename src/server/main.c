@@ -41,8 +41,6 @@ void update_client(ClientContext* ctx) {
         switch (get_packet_id(packet)) {
             case PacketChatMessageId: {
                 handle_chat_message(ctx, packet);
-
-                printf("chat gpt\n");
                 break;
             }
             case PacketSetDisplayNameId: {

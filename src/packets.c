@@ -135,7 +135,7 @@ void* read_packet(const uint8_t* buffer, size_t buffer_size) {
         if (packet == NULL) { \
             return NULL; \
         } \
-        size_t bytes = read_packet_##snake_case_name(packet, buffer + 1, buffer_size); \
+        size_t bytes = read_packet_##snake_case_name(packet, buffer + 1, buffer_size - 1); \
         if (bytes == 0) { \
             free(packet); \
             return NULL; \

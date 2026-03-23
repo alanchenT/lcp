@@ -1,0 +1,16 @@
+.login-title {
+    font-size: larger;
+    font-weight: bolder;
+}
+
+.login-button {}
+
+.display-name-prompt {
+    font-weight: bold;
+    color: dimgray;
+}
+
+entry.display-name-input-error {
+    border-color: red;
+    color: red;
+}
