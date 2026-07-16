@@ -1,0 +1,103 @@
+using Gtk 4.0;
+
+ApplicationWindow main_window {
+    title: "LCP";
+    default-width: 1080;
+    default-height: 720;
+    resizable: true;
+
+    Stack main_stack {
+        StackPage login {
+            name: "login";
+
+            child: Box {
+                orientation: horizontal;
+                hexpand: true;
+                vexpand: true;
+                halign: center;
+                valign: center;
+
+                Box {
+                    orientation: vertical;
+                    spacing: 10;
+
+                    styles [
+                        "login-box"
+                    ]
+
+                    Label title {
+                        label: "Login";
+
+                        styles [
+                            "login-title"
+                        ]
+                    }
+
+                    Label {
+                        label: "Display Name";
+                        halign: start;
+
+                        styles [
+                            "display-name-prompt"
+                        ]
+
+                        margin-bottom: 10;
+                    }
+
+                    Entry display_name_entry {
+                        placeholder-text: "Your name here...";
+                        hexpand: true;
+                        width-request: 300;
+                    }
+
+                    Label max_char_label {
+                        halign: end;
+
+                        styles [
+                            "dim-label"
+                        ]
+                    }
+
+                    Button join_button {
+                        label: "Join";
+                        width-request: 200;
+                        height-request: 40;
+                        halign: center;
+
+                        styles [
+                            "suggested-action"
+                        ]
+                    }
+                }
+            };
+        }
+
+        StackPage {
+            name: "chat";
+
+            child: Box {
+                orientation: horizontal;
+                spacing: 10;
+
+                styles [
+                    "chat-box"
+                ]
+
+                Box {
+                    orientation: vertical;
+                    spacing: 5;
+                    width-request: 150;
+
+                    Label {
+                        label: "Members";
+                        halign: center;
+
+                        styles [
+                            "peers-title"
+                        ]
+                    }
+                }
+            };
+        }
+    }
+}

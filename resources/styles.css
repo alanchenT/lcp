@@ -1,16 +1,27 @@
+.login-box {
+    margin: 100px 25px 100px 25px;
+}
+
 .login-title {
     font-size: larger;
     font-weight: bolder;
 }
-
-.login-button {}
 
 .display-name-prompt {
     font-weight: bold;
     color: dimgray;
 }
 
-entry.display-name-input-error {
+.display-name-prompt.error {
     border-color: red;
     color: red;
+}
+
+.chat-box {
+    margin: 10px 15px 10px 15px;
+}
+
+.peers-title {
+    font-size: large;
+    font-weight: bold;
 }

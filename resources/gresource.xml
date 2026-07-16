@@ -2,5 +2,6 @@
 <gresources>
   <gresource prefix="/com/lcp">
     <file>styles.css</file>
+    <file>app.ui</file>
   </gresource>
 </gresources>

@@ -47,8 +47,6 @@ static void on_login(void*, App* app) {
     if (display_name == NULL || strlen(display_name) < CLIENT_DISPLAY_NAME_MIN_LEN) {
         set_display_name_validity_state(gui, false);
         return;
-    } else {
-        set_display_name_validity_state(gui, true);
     }
 
     printf("name: %s\n", display_name);

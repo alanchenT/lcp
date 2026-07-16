@@ -4,19 +4,19 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-typedef struct _GtkWidget GtkWidget;
+typedef struct _GObject GObject;
 typedef struct _GtkApplication GtkApplication;
 
 typedef struct GuiState {
     GtkApplication* app;
 
-    GtkWidget* window;
+    GObject* window;
 
-    GtkWidget* login_screen;
-    GtkWidget* display_name_entry;
-    GtkWidget* join_button;
+    GObject* login_screen;
+    GObject* display_name_entry;
+    GObject* join_button;
 
-    GtkWidget* chat_screen;
+    GObject* chat_screen;
 
 } GuiState;
 
