@@ -3,10 +3,16 @@
 
 typedef struct Client Client;
 typedef struct GuiState GuiState;
+typedef struct PeerList PeerList;
+typedef unsigned int guint;
 
 typedef struct App {
     GuiState* gui;
     Client* client;
+
+    PeerList* peers;
+
+    guint poll_timer_id;
 } App;
 
 App* alloc_app(void);

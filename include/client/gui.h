@@ -11,6 +11,7 @@ typedef struct GuiState {
     GtkApplication* app;
 
     GObject* window;
+    GObject* stack;
 
     GObject* login_screen;
     GObject* display_name_entry;
@@ -21,6 +22,8 @@ typedef struct GuiState {
 } GuiState;
 
 void set_display_name_validity_state(GuiState* gui, bool state);
+
+void set_visible_screen(GuiState* gui, const char* screen_name);
 
 GuiState* alloc_gui(void);
 

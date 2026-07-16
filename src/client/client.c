@@ -9,7 +9,6 @@
 #include <unistd.h>
 
 #include "client/app.h"
-#include "client/peer_list.h"
 #include "net_shared.h"
 #include "packet_queue.h"
 #include "packets.h"
@@ -71,7 +70,6 @@ Client* alloc_client(void) {
     client->is_connected = false;
     client->send_queue = alloc_packet_queue();
     client->recv_queue = alloc_packet_queue();
-    client->peers = alloc_peer_list();
 
     memset(client->display_name, 0, sizeof(client->display_name));
 
@@ -84,7 +82,6 @@ void free_client(Client* client) {
     free_packet_queue(client->send_queue);
     free_packet_queue(client->recv_queue);
 
-    free_peer_list(client->peers);
     free(client);
 }
 
@@ -203,4 +200,12 @@ bool client_disconnect(Client* client) {
 // TODO: Error handling
 void client_send(Client* client, void* packet) {
     write_packet_queue(client->send_queue, packet);
+}
+
+void* client_poll_packet(Client* client) {
+    return poll_packet_queue(client->recv_queue);
+}
+
+bool client_has_packets(Client* client) {
+    return !is_packet_queue_empty(client->recv_queue);
 }

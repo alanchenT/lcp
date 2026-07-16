@@ -15,41 +15,41 @@ bool handle_chat_message(Client* client, void* packet) {
     return true;
 }
 
-bool handle_set_display_name(Client* client, void* packet) {
+bool handle_set_display_name(PeerList* peers, void* packet) {
     PacketSetDisplayName* data = packet;
 
-    set_peer_display_name(client->peers, data->client_id, data->display_name);
+    set_peer_display_name(peers, data->client_id, data->display_name);
 
     return true;
 }
 
-bool handle_client_connect(Client* client, void* packet) {
+bool handle_client_connect(PeerList* peers, void* packet) {
     PacketClientConnect* data = packet;
 
-    add_peer(client->peers, data->client_id);
+    add_peer(peers, data->client_id);
 
     return true;
 }
 
-bool handle_client_disconnect(Client* client, void* packet) {
+bool handle_client_disconnect(PeerList* peers, void* packet) {
     PacketClientDisconnect* data = packet;
 
-    remove_peer(client->peers, data->client_id);
+    remove_peer(peers, data->client_id);
 
     return true;
 }
 
-bool handle_client_list(Client* client, void* packet) {
+bool handle_client_list(PeerList* peers, void* packet) {
     PacketClientList* data = packet;
 
     for (size_t i = 0; i < data->list_len; ++i) {
         ReplicatedClientContext* ctx = &data->list[i];
 
-        add_peer(client->peers, ctx->id);
-        set_peer_display_name(client->peers, ctx->id, ctx->display_name);
+        add_peer(peers, ctx->id);
+        set_peer_display_name(peers, ctx->id, ctx->display_name);
     }
 
-    print_peer_list(client->peers);
+    print_peer_list(peers);
 
     return true;
 }

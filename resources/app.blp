@@ -83,14 +83,53 @@ ApplicationWindow main_window {
                     "chat-box"
                 ]
 
+                // Left panel: Chat
+                Box {
+                    orientation: vertical;
+                    spacing: 5;
+                    hexpand: true;
+                    margin-end: 20;
+
+                    Label {
+                        label: "Chat Room";
+                        halign: start;
+                    }
+
+                    ScrolledWindow {
+                        vexpand: true;
+
+                        child: TextView {
+                            editable: false;
+                        };
+                    }
+
+                    Box {
+                        orientation: horizontal;
+
+                        Entry message_entry {
+                            placeholder-text: "Type your message...";
+                            hexpand: true;
+                        }
+
+                        Button send_button {
+                            label: "Send";
+
+                            styles [
+                                "suggested-action"
+                            ]
+                        }
+                    }
+                }
+
+                // Right panel: Peers
                 Box {
                     orientation: vertical;
                     spacing: 5;
                     width-request: 150;
 
                     Label {
-                        label: "Members";
-                        halign: center;
+                        label: "Connected Users";
+                        halign: start;
 
                         styles [
                             "peers-title"

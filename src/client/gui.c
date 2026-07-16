@@ -13,6 +13,10 @@ void set_display_name_validity_state(GuiState* gui, bool state) {
     }
 }
 
+void set_visible_screen(GuiState* gui, const char* screen_name) {
+    gtk_stack_set_visible_child_name(GTK_STACK(gui->stack), screen_name);
+}
+
 static void setup_login_screen(GuiState* gui, GtkBuilder* builder) {
     // Text entry for display name
     gui->display_name_entry = gtk_builder_get_object(builder, "display_name_entry");
@@ -51,8 +55,8 @@ static void activate(GtkApplication* app, GuiState* gui) {
     setup_login_screen(gui, builder);
 
     // Present the login screen
-    GObject* stack = gtk_builder_get_object(builder, "main_stack");
-    gtk_stack_set_visible_child_name(GTK_STACK(stack), "login");
+    gui->stack = gtk_builder_get_object(builder, "main_stack");
+    gtk_stack_set_visible_child_name(GTK_STACK(gui->stack), "login");
 
     gtk_window_present(GTK_WINDOW(gui->window));
 }

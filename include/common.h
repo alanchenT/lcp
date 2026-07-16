@@ -17,4 +17,7 @@
 
 #define MAX_NET_BUFFER_SIZE 4096
 
+// The FPS, as milliseconds, of the client app
+#define APP_FRAME_MS 16
+
 #endif

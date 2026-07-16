@@ -48,6 +48,16 @@ void set_peer_display_name(PeerList* list, size_t id, const char* display_name) 
     strncpy(peer->display_name, display_name, CLIENT_DISPLAY_NAME_MAX_LEN);
 }
 
+void reset_peer_list(PeerList* list) {
+    list->count = 0;
+
+    for (size_t i = 0; i < list->capacity; ++i) {
+        PeerInfo* peer = &list->peers[i];
+        peer->is_active = false;
+        memset(peer->display_name, 0, sizeof(peer->display_name));
+    }
+}
+
 void print_peer_list(PeerList* list) {
     printf("=== peers ===\n");
     printf("count: %ld\n", list->count);

@@ -1,3 +1,7 @@
+/*
+    client.h
+*/
+
 #ifndef LCP_CLIENT_CLIENT_H
 #define LCP_CLIENT_CLIENT_H
 
@@ -7,7 +11,6 @@
 
 typedef struct Packet Packet;
 typedef struct PacketQueue PacketQueue;
-typedef struct PeerList PeerList;
 
 typedef struct Client {
     char display_name[CLIENT_DISPLAY_NAME_MAX_LEN];
@@ -22,8 +25,6 @@ typedef struct Client {
     PacketQueue* recv_queue;
 
     bool is_connected;
-
-    PeerList* peers;
 } Client;
 
 Client* alloc_client(void);
@@ -36,5 +37,10 @@ bool client_connect(Client* client, const char* port);
 bool client_disconnect(Client* client);
 
 void client_send(Client* client, void* packet);
+
+// You are responsible for freeing the message buffer
+void* client_poll_packet(Client* client);
+
+bool client_has_packets(Client* client);
 
 #endif
