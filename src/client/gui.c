@@ -31,6 +31,11 @@ static void setup_login_screen(GuiState* gui, GtkBuilder* builder) {
     gui->join_button = gtk_builder_get_object(builder, "join_button");
 }
 
+static void setup_chat_screen(GuiState* gui, GtkBuilder* builder) {
+    gui->message_entry = gtk_builder_get_object(builder, "message_entry");
+    gui->send_message_button = gtk_builder_get_object(builder, "send_message_button");
+}
+
 static void load_css(void) {
     GtkCssProvider* provider = gtk_css_provider_new();
     gtk_css_provider_load_from_resource(provider, "/com/lcp/styles.css");
@@ -51,8 +56,8 @@ static void activate(GtkApplication* app, GuiState* gui) {
     gtk_window_set_application(GTK_WINDOW(gui->window), app);
 
     // Link UI elements, apply dynamic values
-    gui->login_screen = gtk_builder_get_object(builder, "login");
     setup_login_screen(gui, builder);
+    setup_chat_screen(gui, builder);
 
     // Present the login screen
     gui->stack = gtk_builder_get_object(builder, "main_stack");

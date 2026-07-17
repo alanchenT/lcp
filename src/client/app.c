@@ -21,7 +21,7 @@ static gboolean poll_client_net_updates(gpointer user_data) {
 
     Client* client = app->client;
 
-    while (!client_has_packets(client)) {
+    while (client_has_packets(client)) {
         void* packet = client_poll_packet(client);
         if (packet == NULL) {
             break;
@@ -31,6 +31,7 @@ static gboolean poll_client_net_updates(gpointer user_data) {
             case PACKET_ID(PacketClientHandshake): {
                 PacketClientHandshake* handshake = packet;
                 client->id = handshake->client_id;
+
                 break;
             }
             case PACKET_ID(PacketChatMessage): {
@@ -65,6 +66,35 @@ static gboolean poll_client_net_updates(gpointer user_data) {
     return G_SOURCE_CONTINUE;
 }
 
+static void send_message(void*, App* app) {
+    GuiState* gui = app->gui;
+
+    const char* message = gtk_editable_get_text(GTK_EDITABLE(gui->message_entry));
+    if (message == NULL || g_utf8_strlen(message, -1) <= 0) {
+        return;
+    }
+
+    ALLOC_PACKET(PacketChatMessage, chat_message);
+    chat_message->client_id = app->client->id;
+
+    strncpy(chat_message->message, message, sizeof(chat_message->message) - 1);
+    chat_message->message[sizeof(chat_message->message) - 1] = '\0';
+
+    client_send(app->client, chat_message);
+
+    // Clear entry when done
+    gtk_editable_set_text(GTK_EDITABLE(gui->message_entry), "");
+}
+
+static void on_message_entry_changed(GtkEditable* entry, App* app) {
+    GuiState* gui = app->gui;
+
+    const char* message = gtk_editable_get_text(entry);
+
+    // Disable the send button if the message is empty
+    gtk_widget_set_sensitive(GTK_WIDGET(gui->send_message_button), g_utf8_strlen(message, -1) > 0);
+}
+
 App* alloc_app(void) {
     App* app = malloc(sizeof(App));
     if (app == NULL) {
@@ -87,25 +117,6 @@ App* alloc_app(void) {
 
     return app;
 }
-
-// static void app_main(App* app) {
-//     while (app->client->is_connected) {
-//         update(app->client);
-
-//         ALLOC_PACKET(PacketChatMessage, chat_message);
-//         chat_message->client_id = app->client->id;
-
-//         printf("message: ");
-//         if (fgets(chat_message->message, sizeof(chat_message->message), stdin) == NULL) {
-//             free_packet(chat_message);
-//             break;
-//         }
-
-//         chat_message->message[strcspn(chat_message->message, "\n")] = '\0';
-
-//         client_send(app->client, chat_message);
-//     }
-// }
 
 bool app_connect(App* app, const char* port) {
     if (app->client->is_connected) {
@@ -162,6 +173,11 @@ static void activate_gui_hooks(void*, void* arg) {
     g_signal_connect(gui->join_button, "clicked", G_CALLBACK(on_login), app);
 
     g_signal_connect(gui->window, "close-request", G_CALLBACK(on_window_close), app);
+
+    g_signal_connect(gui->message_entry, "changed", G_CALLBACK(on_message_entry_changed), app);
+
+    g_signal_connect(gui->send_message_button, "clicked", G_CALLBACK(send_message), app);
+    g_signal_connect(gui->message_entry, "activate", G_CALLBACK(send_message), app);
 }
 
 bool app_start(App* app) {

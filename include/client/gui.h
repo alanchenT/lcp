@@ -13,9 +13,11 @@ typedef struct GuiState {
     GObject* window;
     GObject* stack;
 
-    GObject* login_screen;
     GObject* display_name_entry;
     GObject* join_button;
+
+    GObject* message_entry;
+    GObject* send_message_button;
 
     GObject* chat_screen;
 
