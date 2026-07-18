@@ -21,6 +21,11 @@
     margin: 10px 15px 10px 15px;
 }
 
+.chat-room-title {
+    font-size: larger;
+    font-weight: bolder;
+}
+
 .peers-title {
     font-size: large;
     font-weight: bold;

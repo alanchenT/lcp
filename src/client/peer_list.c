@@ -43,6 +43,10 @@ void remove_peer(PeerList* list, size_t id) {
     list->count--;
 }
 
+const char* get_peer_display_name(PeerList* list, size_t id) {
+    return list->peers[id].display_name;
+}
+
 void set_peer_display_name(PeerList* list, size_t id, const char* display_name) {
     PeerInfo* peer = &list->peers[id];
     strncpy(peer->display_name, display_name, CLIENT_DISPLAY_NAME_MAX_LEN);

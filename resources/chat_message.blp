@@ -1,0 +1,23 @@
+using Gtk 4.0;
+
+template $LcpChatMessage: ListBoxRow {
+    Box {
+        orientation: vertical;
+
+        Label sender_label {
+            halign: start;
+
+            styles [
+                "caption",
+                "heading"
+            ]
+        }
+
+        Label content_label {
+            halign: start;
+            wrap: true;
+            wrap-mode: word_char;
+            vexpand: true;
+        }
+    }
+}

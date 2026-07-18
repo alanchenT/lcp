@@ -3,6 +3,8 @@
 #include <gtk/gtk.h>
 #include <stdlib.h>
 
+#include "client/gui_templates.h"
+#include "client/peer_list.h"
 #include "common.h"
 
 void set_display_name_validity_state(GuiState* gui, bool state) {
@@ -15,6 +17,32 @@ void set_display_name_validity_state(GuiState* gui, bool state) {
 
 void set_visible_screen(GuiState* gui, const char* screen_name) {
     gtk_stack_set_visible_child_name(GTK_STACK(gui->stack), screen_name);
+}
+
+static void scroll_to_bottom_idle(gpointer user_data) {
+    GtkAdjustment* adj = GTK_ADJUSTMENT(user_data);
+
+    // Smoothly set the scrollbar position to its maximum upper bound
+    gtk_adjustment_set_value(adj, gtk_adjustment_get_upper(adj));
+}
+
+void append_chat_message(GuiState* gui, const char* sender, const char* content) {
+    GtkWidget* new_message = lcp_chat_message_new(sender, content);
+    gtk_list_box_append(GTK_LIST_BOX(gui->message_list), new_message);
+
+    GtkAdjustment* adjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(gui->messages_scrolled_window));
+    g_idle_add_once(scroll_to_bottom_idle, adjustment);
+}
+
+void update_peer_list(GuiState* gui, const PeerList* list) {
+    GtkWidget* parent_container = GTK_WIDGET(gui->peer_list);
+
+    for (GtkWidget* child = gtk_widget_get_first_child(parent_container); child != NULL;
+         child = gtk_widget_get_next_sibling(child)) {}
+
+    for (size_t i = 0; i < list->capacity; ++i) {
+        PeerInfo* peer = &list->peers[i];
+    }
 }
 
 static void setup_login_screen(GuiState* gui, GtkBuilder* builder) {
@@ -34,6 +62,9 @@ static void setup_login_screen(GuiState* gui, GtkBuilder* builder) {
 static void setup_chat_screen(GuiState* gui, GtkBuilder* builder) {
     gui->message_entry = gtk_builder_get_object(builder, "message_entry");
     gui->send_message_button = gtk_builder_get_object(builder, "send_message_button");
+    gui->messages_scrolled_window = gtk_builder_get_object(builder, "messages_scrolled_window");
+    gui->message_list = gtk_builder_get_object(builder, "message_list");
+    gui->peer_list = gtk_builder_get_object(builder, "peer_list");
 }
 
 static void load_css(void) {

@@ -3,5 +3,6 @@
   <gresource prefix="/com/lcp">
     <file>styles.css</file>
     <file>app.ui</file>
+    <file>chat_message.ui</file>
   </gresource>
 </gresources>

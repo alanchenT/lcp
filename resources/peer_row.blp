@@ -1,0 +1,13 @@
+using Gtk 4.0;
+
+template $PeerRow: ListBoxRow {
+    Box {
+        orientation: horizontal;
+
+        Label peer_name {
+            halign: start;
+            hexpand: true;
+            wrap: true;
+        }
+    }
+}

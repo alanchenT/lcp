@@ -20,6 +20,7 @@ void free_peer_list(PeerList* list);
 
 void add_peer(PeerList* list, size_t id);
 void remove_peer(PeerList* list, size_t id);
+const char* get_peer_display_name(PeerList* list, size_t id);
 void set_peer_display_name(PeerList* list, size_t id, const char* display_name);
 void reset_peer_list(PeerList* list);
 

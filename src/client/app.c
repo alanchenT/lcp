@@ -35,23 +35,23 @@ static gboolean poll_client_net_updates(gpointer user_data) {
                 break;
             }
             case PACKET_ID(PacketChatMessage): {
-                handle_chat_message(client, packet);
+                handle_chat_message(app, packet);
                 break;
             }
             case PACKET_ID(PacketSetDisplayName): {
-                handle_set_display_name(app->peers, packet);
+                handle_set_display_name(app, packet);
                 break;
             }
             case PACKET_ID(PacketClientConnect): {
-                handle_client_connect(app->peers, packet);
+                handle_client_connect(app, packet);
                 break;
             }
             case PACKET_ID(PacketClientDisconnect): {
-                handle_client_disconnect(app->peers, packet);
+                handle_client_disconnect(app, packet);
                 break;
             }
             case PACKET_ID(PacketClientList): {
-                handle_client_list(app->peers, packet);
+                handle_client_list(app, packet);
                 break;
             }
 
@@ -74,13 +74,11 @@ static void send_message(void*, App* app) {
         return;
     }
 
-    ALLOC_PACKET(PacketChatMessage, chat_message);
-    chat_message->client_id = app->client->id;
-
-    strncpy(chat_message->message, message, sizeof(chat_message->message) - 1);
-    chat_message->message[sizeof(chat_message->message) - 1] = '\0';
-
-    client_send(app->client, chat_message);
+    ALLOC_PACKET(PacketChatMessage, packet);
+    packet->client_id = app->client->id;
+    strncpy(packet->message, message, sizeof(packet->message) - 1);
+    packet->message[sizeof(packet->message) - 1] = '\0';
+    client_send(app->client, packet);
 
     // Clear entry when done
     gtk_editable_set_text(GTK_EDITABLE(gui->message_entry), "");
@@ -144,11 +142,20 @@ static void on_login(void*, App* app) {
         return;
     }
 
-    printf("name: %s\n", display_name);
-
     if (!app_connect(app, SERVER_PORT)) {
         return;
     }
+
+    // Block till we complete the handshake
+    if (!client_await_handshake(app->client)) {
+        fprintf(stderr, "client: handshake failed\n");
+        return;
+    }
+
+    ALLOC_PACKET(PacketSetDisplayName, packet);
+    packet->client_id = app->client->id;
+    strncpy(packet->display_name, display_name, sizeof(packet->display_name));
+    client_send(app->client, packet);
 
     app->poll_timer_id = g_timeout_add(APP_FRAME_MS, poll_client_net_updates, app);
 

@@ -30,6 +30,8 @@ typedef struct Client {
 Client* alloc_client(void);
 void free_client(Client* client);
 
+bool client_await_handshake(Client* client);
+
 bool client_completed_handshake(Client* client);
 
 bool client_connect(Client* client, const char* port);

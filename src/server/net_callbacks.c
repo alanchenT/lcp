@@ -10,6 +10,7 @@
 
 bool handle_chat_message(ClientContext* ctx, void* packet) {
     PacketChatMessage* chat_message = packet;
+    chat_message->client_id = ctx->id;
     printf("%d said: %s\n", chat_message->client_id, chat_message->message);
 
     // TODO: send_to_all_except
@@ -20,6 +21,7 @@ bool handle_chat_message(ClientContext* ctx, void* packet) {
 
 bool handle_set_display_name(ClientContext* ctx, void* packet) {
     PacketSetDisplayName* display_name = packet;
+    display_name->client_id = ctx->id;
     set_client_context_display_name(ctx, display_name->display_name);
 
     // TODO: send_to_all_except

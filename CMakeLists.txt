@@ -24,6 +24,7 @@ set(RESOURCE_C ${CMAKE_CURRENT_BINARY_DIR}/resources.c)
 
 set(BLP_FILES
     resources/app.blp
+    resources/chat_message.blp
 )
 set(UI_FILES "")
 
@@ -63,6 +64,7 @@ set(CLIENT_SOURCES
     src/client/client.c
     src/client/peer_list.c
     src/client/gui.c
+    src/client/gui_templates.c
     src/client/net_callbacks.c
 
     src/net_shared.c

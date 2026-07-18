@@ -85,6 +85,33 @@ void free_client(Client* client) {
     free(client);
 }
 
+bool client_await_handshake(Client* client) {
+    // Blocks until a packet arrives on recv_queue. Since the server sends
+    // the handshake as the very first packet on this socket, and TCP
+    // preserves ordering, this is guaranteed to be it.
+    Packet* packet = pop_packet_queue(client->recv_queue);
+
+    if (packet == NULL) {
+        // Queue was shut down (disconnected before handshake arrived)
+        fprintf(stderr, "client: disconnected before handshake\n");
+        return false;
+    }
+
+    if (get_packet_id(packet) != PACKET_ID(PacketClientHandshake)) {
+        fprintf(stderr, "client: expected handshake, got packet id %d\n", get_packet_id(packet));
+        free_packet(packet);
+        client_disconnect(client);
+        return false;
+    }
+
+    PacketClientHandshake* handshake = (void*)packet;
+    client->id = handshake->client_id;
+    free_packet(packet);
+
+    printf("client: handshake complete, id=%d\n", client->id);
+    return true;
+}
+
 bool client_completed_handshake(Client* client) {
     return client->id > INVALID_CLIENT_ID;
 }
